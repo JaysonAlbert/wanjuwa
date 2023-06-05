@@ -2,6 +2,7 @@ from urllib import parse
 import requests
 import json
 import logging
+from itertools import chain
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
@@ -32,6 +33,14 @@ activity_msg = '''
 时间: {}
 人数: {}/{}
 '''
+
+
+def get_header(token):
+    return {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Mobile Safari/537.36',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': token
+    }
 
 
 def build_msg(activity):
@@ -98,11 +107,10 @@ def get_activity_list(token, rows, city_code):
 
     response = requests.post(url=get_activity_url,
                              headers=headers, data=get_activity_data)
-    result = json.loads(response.text, strict=False)
-    return result
+    return response.json()
 
 
-def get_user_list(token, article_id, city_code):
+def get_user_list(token, article_id, city_code = '440330'):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Mobile Safari/537.36',
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -115,8 +123,59 @@ def get_user_list(token, article_id, city_code):
 
     response = requests.post(
         url=get_user_url, headers=headers, data=get_user_data)
-    result = json.loads(response.text, strict=False)
-    return result
+    return response.json()
+
+
+def issue_list(token):
+    headers = get_header(token)
+    
+    params = {
+        'type': 4,
+        'page': 1,
+        'row': 10,
+        'isReach': False
+    }
+    
+    url = 'https://www.wanjuwow.com/shop/active/issueList'
+    response = requests.post(
+        url=url, headers= headers, data=params
+    )
+    
+    return response.json()['data']
+
+def club_users(token, cityCode = '440300', clubId= '5d542cc06ac211ecb68fe78ecbc8939a', pageNo = 1):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Mobile Safari/537.36',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': token
+    }
+    params = {
+        'clubId': clubId,
+        'page': pageNo,
+        'row': 50,
+        'isReach': False,
+        'cityCode': cityCode
+    }
+    
+    url = "https://www.wanjuwow.com/shop/games/score/clubUsers"
+    response = requests.post(
+        url=url, headers= headers, data=params
+    )
+    return response.json()['data']
+
+
+def all_club_users(token, cityCode = '440300', clubId= '5d542cc06ac211ecb68fe78ecbc8939a'):
+    result = []
+    pageNo = 1
+    while True:
+        cu = club_users(token, cityCode, clubId, pageNo)
+        if cu:
+            result.append(cu)
+        else:
+            break
+        pageNo = pageNo + 1
+        
+    return list(chain(*result))
 
 
 if __name__ == "__main__":
